@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能图片检索系统</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        .search-tab {
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+
+        .search-tab.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .search-tab:hover:not(.active) {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .floating-input {
+            border: 1px solid #d1d5db;
+            background: white;
+            transition: all 0.2s ease;
+        }
+
+        .floating-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .gradient-button {
+            background: #3b82f6;
+            color: white;
+            border: 1px solid #3b82f6;
+            transition: all 0.2s ease;
+        }
+
+        .gradient-button:hover {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+
+        .tag-pill {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tag-pill:hover {
+            background: #e2e8f0;
+            border-color: #cbd5e1;
+        }
+
+        .tag-pill.selected {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .category-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+
+        .result-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+
+        .result-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .glass-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .glass-card-dark {
+            background: #1f2937;
+            border: 1px solid #374151;
+            color: white;
+        }
+
+        .modal {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: white;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .loading-spinner {
+            border: 2px solid #e5e7eb;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+
+        /* 三分布局样式 */
+        .three-column-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            grid-template-rows: auto 1fr;
+            grid-template-areas: 
+                "sidebar search-area"
+                "sidebar results-area";
+            height: calc(100vh - 73px);
+        }
+
+        .sidebar {
+            grid-area: sidebar;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            overflow-y: auto;
+        }
+
+        .search-area {
+            grid-area: search-area;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1.5rem;
+            min-height: 200px;
+        }
+
+        .results-area {
+            grid-area: results-area;
+            background: #f8fafc;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 1024px) {
+            .three-column-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr;
+                grid-template-areas: 
+                    "sidebar"
+                    "search-area"
+                    "results-area";
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部标题栏 -->
+    <header class="bg-white border-b border-gray-200 px-6 py-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
+                    <i class="fas fa-search text-white"></i>
+                </div>
+                <h1 class="text-xl font-semibold text-gray-900">智能图片检索系统</h1>
+            </div>
+            
+            <div class="flex items-center text-sm text-gray-600">
+                <span class="status-dot"></span>
+                <span id="statusText">系统正常</span>
+                <span class="mx-2">•</span>
+                <span id="indexedCount">0</span> 张图片已索引
+            </div>
+        </div>
+    </header>
+
+    <div id="app" class="three-column-layout">
+        <!-- 左侧边栏 - 标签区域 -->
+        <div class="sidebar">
+            <div class="p-4">
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-gray-800 flex items-center">
+                            <i class="fas fa-star mr-2 text-yellow-500"></i>快速标签
+                        </h3>
+                        <button onclick="app.toggleTagPanel()" class="text-gray-500 hover:text-gray-700 transition-colors">
+                            <i class="fas fa-chevron-up" id="tagPanelToggleIcon"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- 已选标签显示 -->
+                    <div id="selectedTagsArea" class="mb-3 hidden">
+                        <div class="text-xs text-gray-500 mb-2">已选择:</div>
+                        <div class="flex flex-wrap gap-1" id="selectedTags"></div>
+                    </div>
+
+                    <!-- 热门标签 -->
+                    <div class="mb-4" id="tagPanelContent">
+                        <div class="text-xs text-gray-500 mb-2">热门</div>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="tag-pill px-2 py-1 rounded text-xs cursor-pointer" data-tag="轿车">🚗 轿车</span>
+                            <span class="tag-pill px-2 py-1 rounded text-xs cursor-pointer" data-tag="SUV">🚙 SUV</span>
+                            <span class="tag-pill px-2 py-1 rounded text-xs cursor-pointer" data-tag="城市">🏙️ 城市</span>
+                            <span class="tag-pill px-2 py-1 rounded text-xs cursor-pointer" data-tag="自然光线">☀️ 自然光线</span>
+                            <span class="tag-pill px-2 py-1 rounded text-xs cursor-pointer" data-tag="商业风格">📸 商业风格</span>
+                            <span class="tag-pill px-2 py-1 rounded text-xs cursor-pointer" data-tag="正面视角">👀 正面视角</span>
+                        </div>
+
+                        <!-- 分类标签 -->
+                        <div class="space-y-3">
+                            <!-- 车型 -->
+                            <div class="category-card p-3 rounded-lg">
+                                <button class="category-toggle w-full flex items-center justify-between text-xs text-gray-600" data-category="vehicle">
+                                    <span>🚗 车型 (12个)</span>
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </button>
+                                <div class="category-content hidden mt-2">
+                                    <div class="flex flex-wrap gap-1">
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="轿车">轿车</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="SUV">SUV</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="越野">越野</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="房车">房车</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="MPV">MPV</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="跑车">跑车</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="皮卡">皮卡</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="古典车">古典车</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="电动车">电动车</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="紧凑型轿车">紧凑型</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 视角 -->
+                            <div class="category-card p-3 rounded-lg">
+                                <button class="category-toggle w-full flex items-center justify-between text-xs text-gray-600" data-category="angle">
+                                    <span>📷 拍摄视角 (10个)</span>
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </button>
+                                <div class="category-content hidden mt-2">
+                                    <div class="flex flex-wrap gap-1">
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="正面视角">正面</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="侧面视角">侧面</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="45度角">45度</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="后视图">后视</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="俯视图">俯视</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="仰视角">仰视</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="车内视角">车内</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="全景视角">全景</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="鸟瞰视角">鸟瞰</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="特写">特写</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 场景 -->
+                            <div class="category-card p-3 rounded-lg">
+                                <button class="category-toggle w-full flex items-center justify-between text-xs text-gray-600" data-category="scene">
+                                    <span>🏞️ 场景环境 (9个)</span>
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </button>
+                                <div class="category-content hidden mt-2">
+                                    <div class="flex flex-wrap gap-1">
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="城市">城市</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="风景">风景</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="家庭出游">家庭出游</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="商务出行">商务出行</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="休闲旅行">休闲旅行</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="户外探险">户外探险</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="建筑">建筑</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="街拍">街拍</span>
+                                        <span class="tag-pill px-2 py-1 text-xs rounded cursor-pointer" data-tag="展示场景">展示</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 操作按钮 -->
+                        <div class="flex gap-2 mt-4">
+                            <button onclick="app.clearAllTags()" class="px-3 py-2 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200 transition-all font-medium flex-1">
+                                <i class="fas fa-trash mr-1"></i>清空
+                            </button>
+                            <button onclick="app.applyTagsAndSearch()" class="gradient-button px-3 py-2 text-white rounded font-medium flex-1 text-sm">
+                                <i class="fas fa-search mr-1"></i>应用
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右上区域 - 主要搜索功能 -->
+        <div class="search-area">
+            <!-- 搜索模式切换 -->
+            <div class="grid grid-cols-4 gap-2 mb-6">
+                <button id="tabIntelligent" class="search-tab px-3 py-2 rounded text-sm font-medium active">
+                    <i class="fas fa-brain mr-1"></i>智能搜索
+                </button>
+                <button id="tabBasic" class="search-tab px-3 py-2 rounded text-sm font-medium">
+                    <i class="fas fa-search mr-1"></i>基础搜索
+                </button>
+                <button id="tabAI" class="search-tab px-3 py-2 rounded text-sm font-medium">
+                    <i class="fas fa-globe mr-1"></i>AI全网搜索
+                </button>
+                <button id="tabImage" class="search-tab px-3 py-2 rounded text-sm font-medium">
+                    <i class="fas fa-image mr-1"></i>以图搜图
+                </button>
+            </div>
+
+            <!-- 文本搜索面板 -->
+            <div id="textSearchPanel" class="search-panel">
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <input 
+                            type="text" 
+                            id="searchInput" 
+                            placeholder="请输入搜索描述..."
+                            class="floating-input w-full px-4 py-3 rounded-lg focus:outline-none text-base"
+                        >
+                        <div class="mt-2 text-xs text-gray-500">
+                            <div class="intelligent-hint">💡 智能搜索: 用自然语言描述，如"温馨的家庭出游场景"</div>
+                            <div class="basic-hint hidden">🔍 基础搜索: 使用关键词，如"红色 汽车 城市"</div>
+                            <div class="ai-hint hidden">🌐 AI搜索: 搜索高质量摄影作品</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-3 items-end">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">结果数量</label>
+                            <select id="customResultCount" class="floating-input px-3 py-3 rounded-lg focus:outline-none">
+                                <option value="6">6</option>
+                                <option value="9" selected>9</option>
+                                <option value="12">12</option>
+                                <option value="24">24</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                        
+                        <button id="textSearchBtn" class="gradient-button px-6 py-3 rounded-lg font-medium">
+                            <i class="fas fa-search mr-2"></i>搜索
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI搜索面板 -->
+            <div id="aiSearchPanel" class="search-panel hidden">
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <div class="relative">
+                            <input 
+                                type="text" 
+                                id="aiSearchInput" 
+                                placeholder="搜索高质量图片... (支持中文，可一键翻译)"
+                                class="floating-input w-full px-4 py-3 pr-20 rounded-lg focus:outline-none text-base"
+                            >
+                            <button onclick="app.translateSearchText()" 
+                                    id="translateBtn"
+                                    class="absolute right-2 top-2 px-3 py-1.5 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition-colors">
+                                <i class="fas fa-language mr-1"></i>翻译
+                            </button>
+                        </div>
+                        
+                        <!-- 翻译结果 -->
+                        <div id="translationResult" class="hidden mt-2">
+                            <div class="glass-card-dark p-3 rounded text-sm">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-medium">翻译结果:</span>
+                                    <button onclick="app.hideTranslationResult()" class="text-white hover:text-gray-300">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="text-white" id="translatedText"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-2 text-xs text-gray-500">
+                            🎨 AI图片源: 从Pexels、Unsplash、Pixabay获取专业摄影作品
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-3 items-end">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">图片源</label>
+                            <select id="aiSearchSource" class="floating-input px-3 py-3 rounded-lg focus:outline-none">
+                                <option value="all">全部源</option>
+                                <option value="pexels">Pexels</option>
+                                <option value="unsplash">Unsplash</option>
+                                <option value="pixabay">Pixabay</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">数量</label>
+                            <select id="aiResultCount" class="floating-input px-3 py-3 rounded-lg focus:outline-none">
+                                <option value="10">10</option>
+                                <option value="20" selected>20</option>
+                                <option value="30">30</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button id="aiSearchBtn" class="gradient-button px-6 py-3 rounded-lg font-medium">
+                                <i class="fas fa-globe mr-2"></i>AI搜索
+                            </button>
+                            <button onclick="app.smartAISearch()" class="bg-blue-500 px-3 py-3 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                <i class="fas fa-magic"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 以图搜图面板 -->
+            <div id="imageSearchPanel" class="search-panel hidden">
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50">
+                            <input type="file" id="imageInput" accept="image/*" class="hidden">
+                            <div id="uploadArea" class="cursor-pointer">
+                                <div class="w-12 h-12 mx-auto mb-3 gradient-button rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-cloud-upload-alt text-xl text-white"></i>
+                                </div>
+                                <h3 class="text-sm font-semibold text-gray-800 mb-1">上传图片</h3>
+                                <p class="text-xs text-gray-600">支持 JPG, PNG 格式</p>
+                            </div>
+                            <div id="previewArea" class="hidden mt-4">
+                                <img id="previewImage" class="mx-auto max-w-24 max-h-24 rounded shadow-md mb-2">
+                                <div class="text-xs text-gray-600">图片已上传</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-3 items-end">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">结果数量</label>
+                            <select id="imageCustomResultCount" class="floating-input px-3 py-3 rounded-lg focus:outline-none">
+                                <option value="6">6</option>
+                                <option value="9" selected>9</option>
+                                <option value="12">12</option>
+                                <option value="24">24</option>
+                            </select>
+                        </div>
+                        
+                        <button id="imageSearchBtn" class="gradient-button px-6 py-3 rounded-lg font-medium">
+                            <i class="fas fa-search mr-2"></i>搜索
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右下区域 - 搜索结果展示 -->
+        <div class="results-area">
+            <!-- 加载状态 -->
+            <div id="loadingArea" class="hidden flex items-center justify-center h-full">
+                <div class="text-center">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p id="loadingText" class="text-gray-600">正在搜索中...</p>
+                </div>
+            </div>
+
+            <!-- 搜索分析 -->
+            <div id="queryAnalysis" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-4 m-4">
+                <h3 class="font-medium text-blue-800 mb-2 flex items-center">
+                    <i class="fas fa-brain mr-2"></i>搜索分析
+                </h3>
+                <div id="analysisContent" class="text-sm text-blue-700"></div>
+            </div>
+
+            <!-- 搜索结果 -->
+            <div id="resultsSection" class="hidden">
+                <div class="bg-white border-b border-gray-200 px-4 py-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="font-semibold text-gray-900">搜索结果</h2>
+                            <p id="searchResultCount" class="text-sm text-gray-500"></p>
+                        </div>
+                        <button id="downloadAllBtn" class="bg-green-500 px-4 py-2 text-white rounded hover:bg-green-600 transition-colors font-medium text-sm">
+                            <i class="fas fa-download mr-2"></i>批量下载
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="p-4">
+                    <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                        <!-- 搜索结果 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 无结果 -->
+            <div id="noResults" class="hidden flex items-center justify-center h-full">
+                <div class="text-center">
+                    <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-600 mb-2">未找到相关结果</h3>
+                    <p class="text-gray-500">请尝试调整搜索条件或使用不同的关键词</p>
+                </div>
+            </div>
+
+            <!-- 默认欢迎状态 -->
+            <div id="welcomeView" class="flex items-center justify-center h-full">
+                <div class="text-center">
+                    <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-search text-3xl text-blue-500"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-3">开始搜索</h3>
+                    <p class="text-gray-600 max-w-sm">在左侧选择搜索模式并输入关键词，或选择标签开始搜索</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图片详情模态框 - 在现有的基础上修改底部按钮区域 -->
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden flex items-center justify-center p-4">
+        <div class="modal-content rounded-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
+            <!-- 模态框头部 - 保持不变 -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200 border-opacity-30">
+                <h2 class="text-xl font-semibold text-gray-800">图片详情</h2>
+                <div class="flex items-center gap-4">
+                    <div class="text-sm text-gray-600">
+                        <span class="text-gray-400">当前:</span>
+                        <span id="modalImageIndex">1</span> / <span id="modalImageTotal">1</span>
+                    </div>
+                    <button class="close text-gray-400 hover:text-gray-600 text-2xl transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 模态框主体 - 保持不变 -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- 图片区域 -->
+                    <div class="flex items-center justify-center">
+                        <img id="modalImage" class="max-w-full max-h-96 object-contain rounded-xl shadow-lg" src="" alt="">
+                    </div>
+                    
+                    <!-- 信息区域 -->
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-xs font-medium text-gray-500 uppercase tracking-wider">文件名</label>
+                                    <p class="text-sm text-gray-800 font-medium" id="modalFilename">-</p>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-gray-500 uppercase tracking-wider">来源</label>
+                                    <p class="text-sm text-gray-800" id="modalSource">-</p>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-gray-500 uppercase tracking-wider">摄影师</label>
+                                    <p class="text-sm text-gray-800" id="modalPhotographer">-</p>
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-xs font-medium text-gray-500 uppercase tracking-wider">尺寸</label>
+                                    <p class="text-sm text-gray-800" id="modalImageSize">-</p>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-gray-500 uppercase tracking-wider">相似度</label>
+                                    <p class="text-sm text-gray-800" id="modalSimilarity">-</p>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-gray-500 uppercase tracking-wider">状态</label>
+                                    <p class="text-sm text-gray-800" id="modalFileStatus">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3 block">原始链接</label>
+                            <a id="modalOriginalUrl" href="#" target="_blank" class="text-blue-600 hover:underline text-sm break-all">-</a>
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3 block">标签信息</label>
+                            <div id="modalTags" class="p-4 bg-gray-50 rounded-xl text-sm max-h-32 overflow-y-auto">
+                                标签信息加载中...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 模态框底部 - 修复版本 -->
+            <div class="border-t border-gray-200 border-opacity-30 p-6">
+                <div class="flex flex-wrap gap-3 justify-center">
+                    <button id="downloadBtn" style="background-color: #10b981; color: white; padding: 8px 16px; border-radius: 8px; display: flex; align-items: center; gap: 8px; border: none; cursor: pointer;">
+                        <i class="fas fa-download"></i>
+                        <span>下载</span>
+                    </button>
+                    <button id="copyPathBtn" style="background-color: #3b82f6; color: white; padding: 8px 16px; border-radius: 8px; display: flex; align-items: center; gap: 8px; border: none; cursor: pointer;">
+                        <i class="fas fa-copy"></i>
+                        <span>复制路径</span>
+                    </button>
+                    <button id="copyUrlBtn" style="background-color: #8b5cf6; color: white; padding: 8px 16px; border-radius: 8px; display: flex; align-items: center; gap: 8px; border: none; cursor: pointer;">
+                        <i class="fas fa-link"></i>
+                        <span>复制链接</span>
+                    </button>
+                    <button id="similarSearchBtn" style="background-color: #f97316; color: white; padding: 8px 16px; border-radius: 8px; display: flex; align-items: center; gap: 8px; border: none; cursor: pointer;">
+                        <i class="fas fa-search-plus"></i>
+                        <span>相似图搜索</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改全屏图片查看器的主容器 -->
+    <div id="fullscreenImageViewer" class="fixed inset-0 bg-black bg-opacity-95 hidden" style="z-index: 99999 !important;">
+        <div class="relative w-full h-full flex items-center justify-center" style="z-index: 99999 !important;">
+            <!-- 关闭按钮 -->
+            <button id="closeFullscreen" class="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors" style="z-index: 100000 !important;">
+                <i class="fas fa-times text-3xl"></i>
+            </button>
+            
+            <!-- 工具栏 -->
+            <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 rounded-lg px-4 py-2 flex gap-4" style="z-index: 100000 !important;">
+                <button id="zoomOut" class="text-white hover:text-gray-300 transition-colors" title="缩小">
+                    <i class="fas fa-search-minus text-xl"></i>
+                </button>
+                <button id="zoomIn" class="text-white hover:text-gray-300 transition-colors" title="放大">
+                    <i class="fas fa-search-plus text-xl"></i>
+                </button>
+                <button id="resetZoom" class="text-white hover:text-gray-300 transition-colors" title="重置">
+                    <i class="fas fa-expand-arrows-alt text-xl"></i>
+                </button>
+                <button id="downloadFullscreen" class="text-white hover:text-gray-300 transition-colors" title="下载">
+                    <i class="fas fa-download text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- 缩放比例显示 -->
+            <div id="zoomLevel" class="absolute bottom-4 left-4 bg-black bg-opacity-70 text-white px-3 py-1 rounded-lg text-sm" style="z-index: 100000 !important;">
+                100%
+            </div>
+            
+            <!-- 图片容器 -->
+            <div id="imageContainer" class="relative w-full h-full overflow-hidden cursor-grab" style="z-index: 99999 !important;">
+                <img id="fullscreenImage" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-none transition-all duration-300 ease-out" 
+                    style="transform-origin: center center; z-index: 99999 !important;" alt="">
+            </div>
+            
+            <!-- 图片信息 -->
+            <div id="imageInfo" class="absolute bottom-4 right-4 bg-black bg-opacity-70 text-white px-4 py-2 rounded-lg text-sm max-w-xs" style="z-index: 100000 !important;">
+                <div id="imageFileName" class="font-medium mb-1"></div>
+                <div id="imageDimensions" class="text-gray-300"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
