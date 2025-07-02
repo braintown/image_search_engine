@@ -1303,7 +1303,7 @@ class ImageSearchApp {
         }
 
         // 检查文件大小（可选，比如限制10MB）
-        const maxSize = 10 * 1024 * 1024; // 10MB
+        const maxSize = 20 * 1024 * 1024; // 10MB
         if (file.size > maxSize) {
             this.showError('图片文件过大，请选择小于10MB的图片');
             return;
