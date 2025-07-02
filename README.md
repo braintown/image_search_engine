@@ -1,3 +1,5 @@
+![image](https://github.com/user-attachments/assets/d01007df-ff68-4be1-a2a7-9ebced66f22c)
+
 # 代码文件作用解释：
 
 ## 主代码
