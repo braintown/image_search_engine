@@ -320,6 +320,8 @@ class ImageSearchApp {
         const uploadArea = document.getElementById('uploadArea');
         const imageInput = document.getElementById('imageInput');
         const imageSearchBtn = document.getElementById('imageSearchBtn');
+        const removeImageBtn = document.getElementById('removeImageBtn'); // 新增
+        const reSelectImageBtn = document.getElementById('reSelectImageBtn'); // 新增
 
         if (uploadArea && imageInput) {
             uploadArea.addEventListener('click', () => {
@@ -333,6 +335,20 @@ class ImageSearchApp {
 
         if (imageSearchBtn) {
             imageSearchBtn.addEventListener('click', () => this.performImageSearch());
+        }
+        
+        if (removeImageBtn) {
+        removeImageBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.removeUploadedImage();
+        });
+        }
+
+        if (reSelectImageBtn) {
+        reSelectImageBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.reSelectImage();
+        });
         }
 
         // 拖拽上传
@@ -1279,21 +1295,84 @@ class ImageSearchApp {
     }
 
     handleImageUpload(file) {
+        console.log('开始处理图片上传:', file);
+        
         if (!file || !file.type.startsWith('image/')) {
             this.showError('请选择有效的图片文件');
             return;
         }
 
+        // 检查文件大小（可选，比如限制10MB）
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            this.showError('图片文件过大，请选择小于10MB的图片');
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = (e) => {
+            console.log('文件读取完成，开始更新界面');
+            
             const previewImage = document.getElementById('previewImage');
             const uploadArea = document.getElementById('uploadArea');
             const previewArea = document.getElementById('previewArea');
+            const imageFileName = document.getElementById('imageFileName');
+            const imageFileSize = document.getElementById('imageFileSize');
+            const imageSearchBtn = document.getElementById('imageSearchBtn');
             
-            if (previewImage) previewImage.src = e.target.result;
-            if (uploadArea) uploadArea.style.display = 'none';
-            if (previewArea) previewArea.classList.remove('hidden');
+            console.log('DOM元素查找结果:', {
+                previewImage: !!previewImage,
+                uploadArea: !!uploadArea,
+                previewArea: !!previewArea,
+                imageFileName: !!imageFileName,
+                imageFileSize: !!imageFileSize,
+                imageSearchBtn: !!imageSearchBtn
+            });
+            
+            if (previewImage) {
+                previewImage.src = e.target.result;
+                console.log('预览图片已设置');
+            } else {
+                console.error('找不到 previewImage 元素');
+            }
+            
+            if (uploadArea) {
+                uploadArea.style.display = 'none';
+                console.log('上传区域已隐藏');
+            } else {
+                console.error('找不到 uploadArea 元素');
+            }
+            
+            if (previewArea) {
+                previewArea.classList.remove('hidden');
+                console.log('预览区域已显示');
+            } else {
+                console.error('找不到 previewArea 元素');
+            }
+            
+            if (imageFileName) {
+                imageFileName.textContent = file.name;
+                console.log('文件名已设置:', file.name);
+            }
+            
+            if (imageFileSize) {
+                imageFileSize.textContent = this.formatFileSize(file.size);
+                console.log('文件大小已设置:', this.formatFileSize(file.size));
+            }
+            
+            if (imageSearchBtn) {
+                imageSearchBtn.disabled = false;
+                console.log('搜索按钮已启用');
+            }
+
+            this.showSuccess(`图片 "${file.name}" 上传成功，可以开始搜索了！`);
         };
+        
+        reader.onerror = (error) => {
+            console.error('文件读取失败:', error);
+            this.showError('图片读取失败，请重试');
+        };
+        
         reader.readAsDataURL(file);
     }
 
@@ -2175,6 +2254,78 @@ class ImageSearchApp {
         }
 
         return notification;
+    }
+
+    // 新增：删除上传的图片
+    removeUploadedImage() {
+        const uploadArea = document.getElementById('uploadArea');
+        const previewArea = document.getElementById('previewArea');
+        const imageInput = document.getElementById('imageInput');
+        const imageSearchBtn = document.getElementById('imageSearchBtn');
+        
+        if (uploadArea) uploadArea.style.display = 'block';
+        if (previewArea) previewArea.classList.add('hidden');
+        if (imageInput) imageInput.value = ''; // 清空文件选择
+        if (imageSearchBtn) imageSearchBtn.disabled = true;
+        
+        this.showSuccess('图片已删除');
+    }
+
+    // 新增：重新选择图片
+    reSelectImage() {
+        const imageInput = document.getElementById('imageInput');
+        if (imageInput) {
+            imageInput.click();
+        }
+    }
+
+    // 新增：格式化文件大小
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // 修改 performImageSearch 方法，添加验证
+    async performImageSearch() {
+        const imageInput = document.getElementById('imageInput');
+        if (!imageInput || !imageInput.files[0]) {
+            this.showError('请先选择图片');
+            return;
+        }
+
+        const imageCustomResultCount = document.getElementById('imageCustomResultCount');
+        const topK = parseInt(imageCustomResultCount ? imageCustomResultCount.value : 9) || 9;
+        const formData = new FormData();
+        formData.append('image', imageInput.files[0]);
+        formData.append('top_k', topK);
+
+        this.showLoading('正在执行以图搜图...');
+
+        try {
+            const response = await fetch('/api/search/image', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                this.currentResults = result.data.results;
+                this.displayResults(result.data);
+                this.showSuccess(`找到 ${result.data.results.length} 张相似图片`);
+            } else {
+                this.showError(result.error);
+            }
+        } catch (error) {
+            this.showError('图片搜索失败: ' + error.message);
+        } finally {
+            this.hideLoading();
+        }
     }
 }
 

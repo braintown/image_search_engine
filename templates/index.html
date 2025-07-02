@@ -464,43 +464,75 @@
             </div>
 
             <!-- 以图搜图面板 -->
-            <div id="imageSearchPanel" class="search-panel hidden">
-                <div class="flex gap-4">
-                    <div class="flex-1">
-                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50">
+            <!-- 图片搜索面板 - 检查这部分 -->
+            <div id="imageSearchPanel" class="glass-card rounded-2xl p-8 hidden">
+                <div class="text-center">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-camera mr-3 text-blue-500"></i>以图搜图
+                    </h2>
+                    
+                    <!-- 上传区域 -->
+                    <div id="uploadArea" class="border-2 border-dashed border-gray-300 rounded-xl p-12 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300 cursor-pointer">
+                        <div class="text-center">
+                            <i class="fas fa-cloud-upload-alt text-6xl text-gray-400 mb-4"></i>
+                            <p class="text-lg text-gray-600 mb-2">点击选择图片或拖拽到此处</p>
+                            <p class="text-sm text-gray-500">支持 JPG、PNG、WEBP 格式</p>
                             <input type="file" id="imageInput" accept="image/*" class="hidden">
-                            <div id="uploadArea" class="cursor-pointer">
-                                <div class="w-12 h-12 mx-auto mb-3 gradient-button rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-cloud-upload-alt text-xl text-white"></i>
-                                </div>
-                                <h3 class="text-sm font-semibold text-gray-800 mb-1">上传图片</h3>
-                                <p class="text-xs text-gray-600">支持 JPG, PNG 格式</p>
-                            </div>
-                            <div id="previewArea" class="hidden mt-4">
-                                <img id="previewImage" class="mx-auto max-w-24 max-h-24 rounded shadow-md mb-2">
-                                <div class="text-xs text-gray-600">图片已上传</div>
-                            </div>
                         </div>
                     </div>
                     
-                    <div class="flex gap-3 items-end">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">结果数量</label>
-                            <select id="imageCustomResultCount" class="floating-input px-3 py-3 rounded-lg focus:outline-none">
-                                <option value="6">6</option>
-                                <option value="9" selected>9</option>
-                                <option value="12">12</option>
-                                <option value="24">24</option>
+                    <!-- 图片预览区域 - 确保有这部分 -->
+                    <div id="previewArea" class="hidden mt-6">
+                        <div class="relative inline-block">
+                            <img id="previewImage" class="max-w-full max-h-64 rounded-xl shadow-lg" alt="预览图片">
+                            
+                            <!-- 操作按钮组 -->
+                            <div class="absolute top-2 right-2 flex gap-2">
+                                <!-- 删除按钮 -->
+                                <button id="removeImageBtn" class="bg-red-500 text-white w-8 h-8 rounded-full hover:bg-red-600 transition-colors flex items-center justify-center shadow-lg" title="删除图片">
+                                    <i class="fas fa-times text-sm"></i>
+                                </button>
+                                
+                                <!-- 重新选择按钮 -->
+                                <button id="reSelectImageBtn" class="bg-blue-500 text-white w-8 h-8 rounded-full hover:bg-blue-600 transition-colors flex items-center justify-center shadow-lg" title="重新选择">
+                                    <i class="fas fa-sync-alt text-sm"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- 图片信息 -->
+                            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white p-3 rounded-b-xl">
+                                <p id="imageFileName" class="text-sm font-medium">文件名</p>
+                                <p id="imageFileSize" class="text-xs text-gray-300">文件大小</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 上传提示 -->
+                        <div class="mt-4 p-4 bg-green-50 rounded-xl">
+                            <p class="text-green-700 text-sm">
+                                <i class="fas fa-check-circle mr-2"></i>图片已上传！点击下方按钮开始搜索相似图片
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 搜索参数 -->
+                    <div class="flex items-center justify-center gap-6 mt-8">
+                        <div class="flex items-center gap-3">
+                            <label for="imageCustomResultCount" class="text-gray-700 font-medium">结果数量:</label>
+                            <select id="imageCustomResultCount" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="6">6张</option>
+                                <option value="9" selected>9张</option>
+                                <option value="12">12张</option>
+                                <option value="15">15张</option>
+                                <option value="20">20张</option>
                             </select>
                         </div>
                         
-                        <button id="imageSearchBtn" class="gradient-button px-6 py-3 rounded-lg font-medium">
-                            <i class="fas fa-search mr-2"></i>搜索
+                        <button id="imageSearchBtn" class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-3 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-search mr-2"></i>开始搜索
                         </button>
                     </div>
                 </div>
             </div>
-        </div>
 
         <!-- 右下区域 - 搜索结果展示 -->
         <div class="results-area">
